@@ -152,6 +152,11 @@ class StreamSocketConnection implements ConnectionInterface
      */
     public function write($xml)
     {
+        // Checking open connection
+        if (!$this->isOpened()) {
+            throw new ConnectionException('You tried to write to a closed connection.');
+        }
+
         try {
             // Setting up error handler
             $errorHandler = (new ErrorHandler())
