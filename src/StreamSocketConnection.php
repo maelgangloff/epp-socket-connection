@@ -8,6 +8,7 @@ use Struzik\ErrorHandler\Processor\IntoExceptionProcessor;
 use Struzik\ErrorHandler\Exception\ErrorException;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\OptionsResolver\Exception\ExceptionInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Connection to EPP server based on stream_socket_client.
@@ -20,6 +21,13 @@ class StreamSocketConnection implements ConnectionInterface
      * @var array
      */
     private $config;
+
+    /**
+     * Logger object.
+     *
+     * @var LoggerInterface
+     */
+    private $logger;
 
     /**
      * Resource of connection to the server.
@@ -45,9 +53,11 @@ class StreamSocketConnection implements ConnectionInterface
      *
      * @throws ConnectionException
      */
-    public function __construct(array $config = [])
+    public function __construct(array $config = [], LoggerInterface $logger)
     {
         try {
+            $this->logger = $logger;
+
             $resolver = new OptionsResolver();
             $resolver->setRequired('uri');
             $resolver->setRequired('timeout');
@@ -79,12 +89,9 @@ class StreamSocketConnection implements ConnectionInterface
             // Trying to open connection
             $context = stream_context_create($this->config['context']);
             $this->connection = stream_socket_client($this->config['uri'], $errno, $errstr, $this->config['timeout'], STREAM_CLIENT_CONNECT, $context);
-            stream_set_timeout($this->connection, $this->config['timeout']);
 
             // Restore previous error handler
             $errorHandler->restore();
-
-            return $this->connection;
         } catch (ErrorException $e) {
             $this->connection = null;
             throw new ConnectionException('Can not open connection to the EPP server. See previous exception.', 0, $e);
@@ -96,7 +103,7 @@ class StreamSocketConnection implements ConnectionInterface
      */
     public function isOpened()
     {
-        return is_resource($this->connection);
+        return is_resource($this->connection) && !feof($this->connection);
     }
 
     /**
@@ -104,9 +111,15 @@ class StreamSocketConnection implements ConnectionInterface
      */
     public function close()
     {
-        if ($this->isOpened()) {
-            fclose($this->connection);
+        if (!$this->isOpened()) {
+            return;
         }
+
+        if (fclose($this->connection) === false) {
+            throw new ConnectionException('An error occured while closing the connection.');
+        }
+
+        $this->connection = null;
     }
 
     /**
@@ -165,7 +178,13 @@ class StreamSocketConnection implements ConnectionInterface
 
             // Trying to send a request
             $command = $this->prependHeader($xml);
-            fwrite($this->connection, $command);
+            $commandLength = strlen($command);
+            $this->logger->debug(sprintf('Number of bytes of a command: %s', $commandLength));
+            $writtenLength = fwrite($this->connection, $command);
+            $this->logger->debug(sprintf('Number of bytes written to the connection: %s', $writtenLength));
+            if ($commandLength !== $writtenLength) {
+                throw new ConnectionException('The number of bytes of a command is not equal to the number of bytes written to the connection.');
+            }
 
             // Restore previous error handler
             $errorHandler->restore();
@@ -197,12 +216,14 @@ class StreamSocketConnection implements ConnectionInterface
     {
         // Executing several attempt for reading
         $rawHeader = '';
-        for ($i = 0; (strlen($rawHeader) < self::HEADER_LENGTH) && ($i < 10); ++$i) {
+        for ($i = 0; (strlen($rawHeader) < self::HEADER_LENGTH) && ($i < 20); ++$i) {
+            $this->logger->debug('Trying to read 4 bytes of the response header.', ['iteration-number' => $i]);
             $rawHeader .= fread($this->connection, self::HEADER_LENGTH - strlen($rawHeader));
             usleep($i * 100000); // 100000 = 1/10 seconds
         }
 
         // Unpack header from binary string
+        $this->logger->debug(sprintf('Number of bytes of a response header: %s', strlen($rawHeader)));
         $unpackedHeader = unpack('N', $rawHeader);
         $length = $unpackedHeader[1] - self::HEADER_LENGTH;
 

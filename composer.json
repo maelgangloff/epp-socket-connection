@@ -11,6 +11,7 @@
     ],
     "require": {
         "php": ">=5.6",
+        "psr/log": "~1.0",
         "symfony/options-resolver": "~3.2",
         "struzik-vladislav/php-error-handler": "~1.0",
         "struzik-vladislav/epp-client": "dev-master"
