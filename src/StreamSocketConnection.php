@@ -143,10 +143,24 @@ class StreamSocketConnection implements ConnectionInterface
             $errorHandler->set();
 
             // Trying to read a response
+            $beginTime = microtime(true);
             $this->buffer = '';
             $length = $this->readResponseLength();
+            $this->logger->debug(sprintf('The length of the response body is %s bytes.', $length));
             if ($length) {
-                $this->buffer .= fread($this->connection, $length);
+                for ($i = 0; (strlen($this->buffer) < $length) && ($i < 25); ++$i) {
+                    usleep($i * 100000); // 100000 = 1/10 seconds
+                    $residualLength = $length - strlen($this->buffer);
+                    $this->logger->debug(sprintf('Trying to read %s bytes of the response body.', $residualLength), ['iteration-number' => $i]);
+                    $this->buffer .= fread($this->connection, $residualLength);
+                }
+            }
+            $endTime = microtime(true);
+            $this->logger->debug(sprintf('The response time is %s seconds.', $endTime - $beginTime));
+
+            // Checking lengths of the response body
+            if ($length !== strlen($this->buffer)) {
+                throw new ConnectionException('The number of bytes of a response body is not equal to the number of bytes from header.');
             }
 
             // Restore previous error handler
@@ -182,6 +196,8 @@ class StreamSocketConnection implements ConnectionInterface
             $this->logger->debug(sprintf('Number of bytes of a command: %s', $commandLength));
             $writtenLength = fwrite($this->connection, $command);
             $this->logger->debug(sprintf('Number of bytes written to the connection: %s', $writtenLength));
+
+            // Checking lengths of the request
             if ($commandLength !== $writtenLength) {
                 throw new ConnectionException('The number of bytes of a command is not equal to the number of bytes written to the connection.');
             }
@@ -216,10 +232,11 @@ class StreamSocketConnection implements ConnectionInterface
     {
         // Executing several attempt for reading
         $rawHeader = '';
-        for ($i = 0; (strlen($rawHeader) < self::HEADER_LENGTH) && ($i < 20); ++$i) {
-            $this->logger->debug('Trying to read 4 bytes of the response header.', ['iteration-number' => $i]);
-            $rawHeader .= fread($this->connection, self::HEADER_LENGTH - strlen($rawHeader));
+        for ($i = 0; (strlen($rawHeader) < self::HEADER_LENGTH) && ($i < 25); ++$i) {
             usleep($i * 100000); // 100000 = 1/10 seconds
+            $residualLength = self::HEADER_LENGTH - strlen($rawHeader);
+            $this->logger->debug(sprintf('Trying to read %s bytes of the response header.', $residualLength), ['iteration-number' => $i]);
+            $rawHeader .= fread($this->connection, $residualLength);
         }
 
         // Unpack header from binary string
