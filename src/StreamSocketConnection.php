@@ -156,7 +156,7 @@ class StreamSocketConnection implements ConnectionInterface
                 }
             }
             $endTime = microtime(true);
-            $this->logger->debug(sprintf('The response time is %s seconds.', $endTime - $beginTime));
+            $this->logger->debug(sprintf('The response time is %s seconds.', round($endTime - $beginTime, 3)));
 
             // Checking lengths of the response body
             if ($length !== strlen($this->buffer)) {
