@@ -9,8 +9,6 @@ Socket connection for communicating with EPP(Extensible Provisioning Protocol) s
 use Struzik\EPPClient\Connection\StreamSocketConnection;
 use Psr\Log\NullLogger;
 
-require_once __DIR__.'/vendor/autoload.php';
-
 $connection = new StreamSocketConnection(
     [
         'uri' => 'tls://epp.example.com:700',
