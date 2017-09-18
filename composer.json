@@ -14,7 +14,7 @@
         "psr/log": "~1.0",
         "symfony/options-resolver": "~3.2",
         "struzik-vladislav/php-error-handler": "~1.0",
-        "struzik-vladislav/epp-client": "dev-master"
+        "struzik-vladislav/epp-client": "~1.0"
     },
     "autoload": {
         "psr-4": {
