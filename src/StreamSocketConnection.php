@@ -46,10 +46,11 @@ class StreamSocketConnection implements ConnectionInterface
     /**
      * Creating connection object to the EPP server.
      *
-     * @param array $config
-     *                      'uri' - (string) EPP server URI
-     *                      'timeout' - (int) Connection timeout in seconds
-     *                      'context' - (array) Value of $options parameter in stream_context_create(). See: https://secure.php.net/manual/en/function.stream-context-create.php
+     * @param array           $config
+     *                                'uri' - (string) EPP server URI
+     *                                'timeout' - (int) Number of seconds until the connect() system call should timeout.
+     *                                'context' - (array) Value of $options parameter in stream_context_create(). See: https://secure.php.net/manual/en/function.stream-context-create.php
+     * @param LoggerInterface $logger PSR-3 compatible logger
      *
      * @throws ConnectionException
      */
