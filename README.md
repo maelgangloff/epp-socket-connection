@@ -6,21 +6,19 @@ Socket connection for communicating with EPP(Extensible Provisioning Protocol) s
 ```php
 <?php
 
-use Struzik\EPPClient\Connection\StreamSocketConnection;
 use Psr\Log\NullLogger;
+use Struzik\EPPClient\SocketConnection\StreamSocketConfig;
+use Struzik\EPPClient\SocketConnection\StreamSocketConnection;
 
-$connection = new StreamSocketConnection(
-    [
-        'uri' => 'tls://epp.example.com:700',
-        'timeout' => 30,
-        'context' => [
-            'ssl' => [
-                'local_cert' => __DIR__.'/certificate.pem',
-            ],
-        ],
+$connectionConfig = new StreamSocketConfig();
+$connectionConfig->uri = 'tls://epp.example.com:700';
+$connectionConfig->timeout = 30;
+$connectionConfig->context = [
+    'ssl' => [
+        'local_cert' => __DIR__.'/certificate.pem',
     ],
-    new NullLogger()
-);
+];
+$connection = new StreamSocketConnection($connectionConfig, new NullLogger());
 
 $connection->open();
 echo $connection->read();

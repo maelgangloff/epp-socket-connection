@@ -1,14 +1,14 @@
 <?php
 
-namespace Struzik\EPPClient\Connection;
+namespace Struzik\EPPClient\SocketConnection;
 
-use Struzik\EPPClient\Exception\ConnectionException;
-use Struzik\ErrorHandler\ErrorHandler;
-use Struzik\ErrorHandler\Processor\IntoExceptionProcessor;
-use Struzik\ErrorHandler\Exception\ErrorException;
-use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\OptionsResolver\Exception\ExceptionInterface;
 use Psr\Log\LoggerInterface;
+use Struzik\EPPClient\Connection\ConnectionInterface;
+use Struzik\EPPClient\Exception\ConnectionException;
+use Struzik\EPPClient\Response\Session\GreetingResponse;
+use Struzik\ErrorHandler\ErrorHandler;
+use Struzik\ErrorHandler\Exception\ErrorException;
+use Struzik\ErrorHandler\Processor\IntoExceptionProcessor;
 
 /**
  * Connection to EPP server based on stream_socket_client.
@@ -17,17 +17,13 @@ class StreamSocketConnection implements ConnectionInterface
 {
     /**
      * Server connection settings.
-     *
-     * @var array
      */
-    private $config;
+    private StreamSocketConfig $config;
 
     /**
      * Logger object.
-     *
-     * @var LoggerInterface
      */
-    private $logger;
+    private LoggerInterface $logger;
 
     /**
      * Resource of connection to the server.
@@ -37,41 +33,15 @@ class StreamSocketConnection implements ConnectionInterface
     private $connection;
 
     /**
-     * Buffer for stream reading.
-     *
-     * @var string
-     */
-    private $buffer;
-
-    /**
      * Creating connection object to the EPP server.
      *
-     * @param array           $config
-     *                                'uri' - (string) EPP server URI
-     *                                'timeout' - (int) Number of seconds until the connect() system call should timeout.
-     *                                'context' - (array) Value of $options parameter in stream_context_create(). See: https://secure.php.net/manual/en/function.stream-context-create.php
-     * @param LoggerInterface $logger PSR-3 compatible logger
-     *
-     * @throws ConnectionException
+     * @param StreamSocketConfig $config connection settings
+     * @param LoggerInterface    $logger PSR-3 compatible logger
      */
-    public function __construct(array $config = [], LoggerInterface $logger)
+    public function __construct(StreamSocketConfig $config, LoggerInterface $logger)
     {
-        try {
-            $this->logger = $logger;
-
-            $resolver = new OptionsResolver();
-            $resolver->setRequired('uri');
-            $resolver->setRequired('timeout');
-            $resolver->setRequired('context');
-            $resolver->setDefault('context', []);
-            $resolver->setAllowedTypes('uri', 'string');
-            $resolver->setAllowedTypes('timeout', 'int');
-            $resolver->setAllowedTypes('context', 'array');
-
-            $this->config = $resolver->resolve($config);
-        } catch (ExceptionInterface $e) {
-            throw new ConnectionException('Invalid configuration parameters. See previous exception.', 0, $e);
-        }
+        $this->config = $config;
+        $this->logger = $logger;
     }
 
     /**
@@ -79,7 +49,7 @@ class StreamSocketConnection implements ConnectionInterface
      *
      * @throws ConnectionException
      */
-    public function open()
+    public function open(): void
     {
         try {
             // Setting up error handler
@@ -88,8 +58,18 @@ class StreamSocketConnection implements ConnectionInterface
             $errorHandler->set();
 
             // Trying to open connection
-            $context = stream_context_create($this->config['context']);
-            $this->connection = stream_socket_client($this->config['uri'], $errno, $errstr, $this->config['timeout'], STREAM_CLIENT_CONNECT, $context);
+            $context = stream_context_create($this->config->context);
+            $this->connection = stream_socket_client($this->config->uri, $errno, $errstr, $this->config->timeout, STREAM_CLIENT_CONNECT, $context);
+
+            // Read greeting
+            $greetingXML = $this->read();
+            $this->logger->info(sprintf('Read greeting on connect: %s', $greetingXML));
+
+            // Check greeting
+            $greeting = new GreetingResponse($greetingXML);
+            if (!$greeting->isSuccess()) {
+                throw new ConnectionException('Invalid greeting content. Node <greeting> not found. See log for details.');
+            }
 
             // Restore previous error handler
             $errorHandler->restore();
@@ -102,7 +82,7 @@ class StreamSocketConnection implements ConnectionInterface
     /**
      * {@inheritdoc}
      */
-    public function isOpened()
+    public function isOpened(): bool
     {
         return is_resource($this->connection) && !feof($this->connection);
     }
@@ -110,14 +90,14 @@ class StreamSocketConnection implements ConnectionInterface
     /**
      * {@inheritdoc}
      */
-    public function close()
+    public function close(): void
     {
         if (!$this->isOpened()) {
             return;
         }
 
         if (fclose($this->connection) === false) {
-            throw new ConnectionException('An error occured while closing the connection.');
+            throw new ConnectionException('An error occurred while closing the connection.');
         }
 
         $this->connection = null;
@@ -126,11 +106,9 @@ class StreamSocketConnection implements ConnectionInterface
     /**
      * {@inheritdoc}
      *
-     * @return string
-     *
      * @throws ConnectionException
      */
-    public function read()
+    public function read(): string
     {
         // Checking open connection
         if (!$this->isOpened()) {
@@ -145,29 +123,29 @@ class StreamSocketConnection implements ConnectionInterface
 
             // Trying to read a response
             $beginTime = microtime(true);
-            $this->buffer = '';
+            $readBuffer = '';
             $length = $this->readResponseLength();
             $this->logger->debug(sprintf('The length of the response body is %s bytes.', $length));
             if ($length) {
-                for ($i = 0; (strlen($this->buffer) < $length) && ($i < 25); ++$i) {
+                for ($i = 0; (strlen($readBuffer) < $length) && ($i < 25); ++$i) {
                     usleep($i * 100000); // 100000 = 1/10 seconds
-                    $residualLength = $length - strlen($this->buffer);
+                    $residualLength = $length - strlen($readBuffer);
                     $this->logger->debug(sprintf('Trying to read %s bytes of the response body.', $residualLength), ['iteration-number' => $i]);
-                    $this->buffer .= fread($this->connection, $residualLength);
+                    $readBuffer .= fread($this->connection, $residualLength);
                 }
             }
             $endTime = microtime(true);
             $this->logger->debug(sprintf('The response time is %s seconds.', round($endTime - $beginTime, 3)));
 
             // Checking lengths of the response body
-            if ($length !== strlen($this->buffer)) {
+            if ($length !== strlen($readBuffer)) {
                 throw new ConnectionException('The number of bytes of a response body is not equal to the number of bytes from header.');
             }
 
             // Restore previous error handler
             $errorHandler->restore();
 
-            return $this->buffer;
+            return $readBuffer;
         } catch (ErrorException $e) {
             throw new ConnectionException('An error occurred while trying to read the response. See previous exception.', 0, $e);
         }
@@ -178,7 +156,7 @@ class StreamSocketConnection implements ConnectionInterface
      *
      * @throws ConnectionException
      */
-    public function write($xml)
+    public function write(string $xml): void
     {
         // Checking open connection
         if (!$this->isOpened()) {
@@ -214,10 +192,8 @@ class StreamSocketConnection implements ConnectionInterface
      * Preparing the request for sending to the EPP server. Adds a header to the command text.
      *
      * @param string $xml RAW-request without header
-     *
-     * @return string
      */
-    protected function prependHeader($xml)
+    protected function prependHeader(string $xml): string
     {
         $header = pack('N', strlen($xml) + self::HEADER_LENGTH);
 
@@ -226,10 +202,8 @@ class StreamSocketConnection implements ConnectionInterface
 
     /**
      * Returns the length of the response (without header) in bytes.
-     *
-     * @return int
      */
-    protected function readResponseLength()
+    protected function readResponseLength(): int
     {
         // Executing several attempt for reading
         $rawHeader = '';
@@ -243,8 +217,7 @@ class StreamSocketConnection implements ConnectionInterface
         // Unpack header from binary string
         $this->logger->debug(sprintf('Number of bytes of a response header: %s', strlen($rawHeader)));
         $unpackedHeader = unpack('N', $rawHeader);
-        $length = $unpackedHeader[1] - self::HEADER_LENGTH;
 
-        return $length;
+        return $unpackedHeader[1] - self::HEADER_LENGTH;
     }
 }
