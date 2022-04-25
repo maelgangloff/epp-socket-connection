@@ -1,5 +1,8 @@
 # EPP Socket Connection
+
 Socket connection for communicating with EPP(Extensible Provisioning Protocol) servers.
+
+Connection for [struzik-vladislav/epp-client](https://github.com/struzik-vladislav/epp-client) library.
 
 ## Usage
 

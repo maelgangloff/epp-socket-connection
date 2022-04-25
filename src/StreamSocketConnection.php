@@ -139,7 +139,7 @@ class StreamSocketConnection implements ConnectionInterface
 
             // Checking lengths of the response body
             if ($length !== strlen($readBuffer)) {
-                throw new ConnectionException('The number of bytes of a response body is not equal to the number of bytes from header.');
+                throw new ConnectionException('The number of bytes of the response body is not equal to the number of bytes from header.');
             }
 
             // Restore previous error handler
@@ -172,13 +172,13 @@ class StreamSocketConnection implements ConnectionInterface
             // Trying to send a request
             $command = $this->prependHeader($xml);
             $commandLength = strlen($command);
-            $this->logger->debug(sprintf('Number of bytes of a command: %s', $commandLength));
+            $this->logger->debug(sprintf('Number of bytes of the request: %s', $commandLength));
             $writtenLength = fwrite($this->connection, $command);
             $this->logger->debug(sprintf('Number of bytes written to the connection: %s', $writtenLength));
 
             // Checking lengths of the request
             if ($commandLength !== $writtenLength) {
-                throw new ConnectionException('The number of bytes of a command is not equal to the number of bytes written to the connection.');
+                throw new ConnectionException('The number of bytes of the request is not equal to the number of bytes written to the connection.');
             }
 
             // Restore previous error handler
@@ -215,7 +215,7 @@ class StreamSocketConnection implements ConnectionInterface
         }
 
         // Unpack header from binary string
-        $this->logger->debug(sprintf('Number of bytes of a response header: %s', strlen($rawHeader)));
+        $this->logger->debug(sprintf('Number of bytes of the response header: %s', strlen($rawHeader)));
         $unpackedHeader = unpack('N', $rawHeader);
 
         return $unpackedHeader[1] - self::HEADER_LENGTH;
