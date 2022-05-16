@@ -1,4 +1,8 @@
 # EPP Socket Connection
+[![Latest Stable Version](https://img.shields.io/github/v/release/struzik-vladislav/epp-socket-connection?sort=semver&style=flat-square)](https://packagist.org/packages/struzik-vladislav/epp-socket-connection)
+[![Total Downloads](https://img.shields.io/packagist/dt/struzik-vladislav/epp-socket-connection?style=flat-square)](https://packagist.org/packages/struzik-vladislav/epp-socket-connection/stats)
+[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE)
+[![StandWithUkraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 Socket connection for communicating with EPP(Extensible Provisioning Protocol) servers.
 

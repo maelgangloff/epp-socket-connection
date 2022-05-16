@@ -60,13 +60,10 @@ class StreamSocketConnection implements ConnectionInterface
             // Trying to open connection
             $context = stream_context_create($this->config->context);
             $this->connection = stream_socket_client($this->config->uri, $errno, $errstr, $this->config->timeout, STREAM_CLIENT_CONNECT, $context);
+            stream_set_timeout($this->connection, $this->config->timeout);
 
-            // Read greeting
-            $greetingXML = $this->read();
-            $this->logger->info(sprintf('Read greeting on connect: %s', $greetingXML));
-
-            // Check greeting
-            $greeting = new GreetingResponse($greetingXML);
+            // Read greeting and check it
+            $greeting = new GreetingResponse($this->read());
             if (!$greeting->isSuccess()) {
                 throw new ConnectionException('Invalid greeting content. Node <greeting> not found. See log for details.');
             }
@@ -92,11 +89,7 @@ class StreamSocketConnection implements ConnectionInterface
      */
     public function close(): void
     {
-        if (!$this->isOpened()) {
-            return;
-        }
-
-        if (fclose($this->connection) === false) {
+        if ($this->isOpened() && fclose($this->connection) === false) {
             throw new ConnectionException('An error occurred while closing the connection.');
         }
 
@@ -145,6 +138,8 @@ class StreamSocketConnection implements ConnectionInterface
             // Restore previous error handler
             $errorHandler->restore();
 
+            $this->logger->info('The data read from the EPP connection', ['body' => $readBuffer]);
+
             return $readBuffer;
         } catch (ErrorException $e) {
             throw new ConnectionException('An error occurred while trying to read the response. See previous exception.', 0, $e);
@@ -158,6 +153,8 @@ class StreamSocketConnection implements ConnectionInterface
      */
     public function write(string $xml): void
     {
+        $this->logger->info('The data written to the EPP connection', ['body' => $xml]);
+
         // Checking open connection
         if (!$this->isOpened()) {
             throw new ConnectionException('You tried to write to a closed connection.');
@@ -207,7 +204,8 @@ class StreamSocketConnection implements ConnectionInterface
     {
         // Executing several attempt for reading
         $rawHeader = '';
-        for ($i = 0; (strlen($rawHeader) < self::HEADER_LENGTH) && ($i < 25); ++$i) {
+        $readTimeout = time() + $this->config->timeout;
+        for ($i = 0; $this->isOpened() && (time() < $readTimeout) && (strlen($rawHeader) < self::HEADER_LENGTH); ++$i) {
             usleep($i * 100000); // 100000 = 1/10 seconds
             $residualLength = self::HEADER_LENGTH - strlen($rawHeader);
             $this->logger->debug(sprintf('Trying to read %s bytes of the response header.', $residualLength), ['iteration-number' => $i]);
