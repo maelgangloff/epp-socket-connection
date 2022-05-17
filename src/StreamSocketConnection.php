@@ -128,7 +128,8 @@ class StreamSocketConnection implements ConnectionInterface
                 }
             }
             $endTime = microtime(true);
-            $this->logger->debug(sprintf('The response time is %s seconds.', round($endTime - $beginTime, 3)));
+            $usedTime = round($endTime - $beginTime, 3);
+            $this->logger->debug(sprintf('The response time is %s seconds.', $usedTime));
 
             // Checking lengths of the response body
             if ($length !== strlen($readBuffer)) {
@@ -138,7 +139,7 @@ class StreamSocketConnection implements ConnectionInterface
             // Restore previous error handler
             $errorHandler->restore();
 
-            $this->logger->info('The data read from the EPP connection', ['body' => $readBuffer]);
+            $this->logger->info('The data read from the EPP connection', ['body' => $readBuffer, 'time' => $usedTime]);
 
             return $readBuffer;
         } catch (ErrorException $e) {
