@@ -10,7 +10,7 @@
         }
     ],
     "require": {
-        "php": ">=7.4 <8.2",
+        "php": ">=7.4 <8.3",
         "psr/log": "~1.0 | ~2.0 | ~3.0",
         "struzik-vladislav/php-error-handler": "~1.0",
         "struzik-vladislav/epp-client": "^2.0"
