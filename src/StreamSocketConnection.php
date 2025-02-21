@@ -36,7 +36,7 @@ class StreamSocketConnection implements ConnectionInterface
      * Creating connection object to the EPP server.
      *
      * @param StreamSocketConfig $config connection settings
-     * @param LoggerInterface    $logger PSR-3 compatible logger
+     * @param LoggerInterface $logger PSR-3 compatible logger
      */
     public function __construct(StreamSocketConfig $config, LoggerInterface $logger)
     {
@@ -195,7 +195,7 @@ class StreamSocketConnection implements ConnectionInterface
     {
         $header = pack('N', strlen($xml) + self::HEADER_LENGTH);
 
-        return $header.$xml;
+        return $header . $xml;
     }
 
     /**
