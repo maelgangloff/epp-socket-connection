@@ -1,23 +1,41 @@
 {
-    "name": "struzik-vladislav/epp-socket-connection",
-    "description": "Socket connection for communicating with EPP(Extensible Provisioning Protocol) servers",
-    "keywords": ["epp", "socket", "connection"],
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Vladislav Struzik",
-            "email": "vladislav@struzik.blog"
-        }
-    ],
-    "require": {
-        "php": ">=7.4",
-        "psr/log": "~1.0 | ~2.0 | ~3.0",
-        "struzik-vladislav/php-error-handler": "~1.0",
-        "struzik-vladislav/epp-client": "^2.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "Struzik\\EPPClient\\SocketConnection\\": "src/"
-        }
+  "name": "struzik-vladislav/epp-socket-connection",
+  "description": "Socket connection for communicating with EPP(Extensible Provisioning Protocol) servers",
+  "keywords": [
+    "epp",
+    "socket",
+    "connection"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Vladislav Struzik",
+      "email": "vladislav@struzik.blog"
     }
+  ],
+  "repositories": [
+    {
+      "type": "package",
+      "package": {
+        "name": "struzik-vladislav/epp-client",
+        "version": "2.0",
+        "source": {
+          "url": "https://github.com/maelgangloff/epp-client.git",
+          "type": "git",
+          "reference": "master"
+        }
+      }
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "psr/log": "~1.0 | ~2.0 | ~3.0",
+    "struzik-vladislav/php-error-handler": "~1.0",
+    "struzik-vladislav/epp-client": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Struzik\\EPPClient\\SocketConnection\\": "src/"
+    }
+  }
 }
